@@ -51,8 +51,8 @@ class Connector;
 class EptInfo;
 class Key;
 class CopcTileContents;
-struct Overlap;
-using Hierarchy = std::unordered_set<Overlap>;
+struct CopcOverlap;
+using CopcHierarchy = std::unordered_set<CopcOverlap>;
 using StringMap = std::map<std::string, std::string>;
 
 class PDAL_DLL CopcReader : public Reader, public Streamable
@@ -84,12 +84,12 @@ private:
     // points from a walk through the hierarchy.  Each of these keys will be
     // downloaded during the 'read' section.
     void overlaps();
-    void overlaps(Hierarchy& target, const NL::json& current, const Key& key);
+    void overlaps(CopcHierarchy& target, const NL::json& current, const Key& key);
     bool hasSpatialFilter() const;
     bool passesSpatialFilter(const BOX3D& tileBounds) const;
     void process(PointViewPtr dstView, const CopcTileContents& tile, point_count_t count);
     bool processPoint(PointRef& dst, const CopcTileContents& tile);
-    void load(const Overlap& overlap);
+    void load(const CopcOverlap& overlap);
     void checkTile(const CopcTileContents& tile);
 
     struct Args;

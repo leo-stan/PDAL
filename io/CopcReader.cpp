@@ -103,9 +103,8 @@ public:
     std::unique_ptr<EptInfo> info;
     std::unique_ptr<ThreadPool> pool;
     std::unique_ptr<CopcTileContents> currentTile;
-    std::unique_ptr<Hierarchy> hierarchy;
+    std::unique_ptr<CopcHierarchy> hierarchy;
     std::queue<CopcTileContents> contents;
-    AddonList addons;
     std::mutex mutex;
     std::condition_variable contentsCv;
     std::vector<PolyXform> polys;
@@ -128,7 +127,8 @@ void CopcReader::addArgs(ProgramArgs& args)
     args.add("requests", "Number of worker threads", m_args->m_threads, (size_t)15);
     args.addSynonym("requests", "threads");
     args.add("resolution", "Resolution limit", m_args->m_resolution);
-    args.add("addons", "Mapping of addon dimensions to their output directory", m_args->m_addons);
+    // ADDON CODE
+    // args.add("addons", "Mapping of addon dimensions to their output directory", m_args->m_addons);
     args.add("polygon", "Bounding polygon(s) to crop requests",
         m_args->m_polys).setErrorText("Invalid polygon specification. "
             "Must be valid GeoJSON/WKT");
@@ -180,7 +180,8 @@ void CopcReader::initialize()
     {
         m_p->info.reset(new EptInfo(m_filename, *m_p->connector));
         setSpatialReference(m_p->info->srs());
-        m_p->addons = Addon::load(*m_p->connector, m_args->m_addons);
+        // ADDON CODE
+        // m_p->addons = Addon::load(*m_p->connector, m_args->m_addons);
     }
     catch (const arbiter::ArbiterError& err)
     {
@@ -376,13 +377,13 @@ QuickInfo CopcReader::inspect()
         log()->get(LogLevel::Debug) <<
             "Determining overlapping point count" << std::endl;
 
-        m_p->hierarchy.reset(new Hierarchy);
+        m_p->hierarchy.reset(new CopcHierarchy);
         overlaps();
 
         // If we've passed a spatial filter, determine an upper bound on the
         // point count based on the hierarchy.
         qi.m_pointCount = 0;
-        for (const Overlap& overlap : *m_p->hierarchy)
+        for (const CopcOverlap& overlap : *m_p->hierarchy)
             qi.m_pointCount += overlap.m_count;
 
         //ABELL - This is wrong since we're not transforming the tile bounds to the
@@ -418,21 +419,23 @@ void CopcReader::addDimensions(PointLayoutPtr layout)
         else
             layout->registerOrAssignDim(name, dt.m_type);
     }
-
-    for (Addon& addon : m_p->addons)
-        addon.setExternalId(
-            layout->registerOrAssignDim(addon.name(), addon.type()));
+// ADDON CODE
+//    for (Addon& addon : m_p->addons)
+//        addon.setExternalId(
+//            layout->registerOrAssignDim(addon.name(), addon.type()));
 }
 
 
 // Start a thread to read an overlap.  When the data has been read,
 // stick the tile on the queue and notify the main thread.
-void CopcReader::load(const Overlap& overlap)
+void CopcReader::load(const CopcOverlap& overlap)
 {
     m_p->pool->add([this, overlap]()
         {
             // Read the tile.
-            CopcTileContents tile(overlap, *m_p->info, *m_p->connector, m_p->addons);
+            // ADDON CODE
+//            CopcTileContents tile(overlap, *m_p->info, *m_p->connector, m_p->addons);
+            CopcTileContents tile(overlap, *m_p->info, *m_p->connector);
             tile.read();
 
             // Put the tile on the output queue.
@@ -452,7 +455,7 @@ void CopcReader::ready(PointTableRef table)
     m_nodeIdDim = table.layout()->findDim("EptNodeId");
     m_pointIdDim = table.layout()->findDim("EptPointId");
 
-    m_p->hierarchy.reset(new Hierarchy);
+    m_p->hierarchy.reset(new CopcHierarchy);
 
     // Determine all overlapping data files we'll need to fetch.
     try
@@ -465,7 +468,7 @@ void CopcReader::ready(PointTableRef table)
     }
 
     point_count_t overlapPoints(0);
-    for (const Overlap& overlap : *m_p->hierarchy)
+    for (const CopcOverlap& overlap : *m_p->hierarchy)
         overlapPoints += overlap.m_count;
 
     if (overlapPoints > 1e8)
@@ -482,7 +485,7 @@ void CopcReader::ready(PointTableRef table)
     // show up at once. Others requests will be queued as the results
     // are handled.
     m_p->pool.reset(new ThreadPool(m_p->pool->numThreads()));
-    for (const Overlap& overlap : *m_p->hierarchy)
+    for (const CopcOverlap& overlap : *m_p->hierarchy)
         load(overlap);
     if (table.supportsView())
         m_artifactMgr = &table.artifactManager();
@@ -509,15 +512,15 @@ void CopcReader::overlaps()
         overlaps(*m_p->hierarchy, m_p->connector->getJson(filename), key);
     }
     m_p->pool->await();
-
-    // Determine the addons that exist to correspond to tiles.
-    for (auto& addon : m_p->addons)
-    {
-        m_nodeId = 1;
-        std::string filename = addon.hierarchyDir() + key.toString() + ".json";
-        overlaps(addon.hierarchy(), m_p->connector->getJson(filename), key);
-        m_p->pool->await();
-    }
+// ADDON CODE
+//    // Determine the addons that exist to correspond to tiles.
+//    for (auto& addon : m_p->addons)
+//    {
+//        m_nodeId = 1;
+//        std::string filename = addon.hierarchyDir() + key.toString() + ".json";
+//        overlaps(addon.hierarchy(), m_p->connector->getJson(filename), key);
+//        m_p->pool->await();
+//    }
 }
 
 
@@ -586,7 +589,7 @@ bool CopcReader::passesSpatialFilter(const BOX3D& tileBounds) const
 
 // This will add keys to target until key is reached
 // Also used to get all keys in bounds by giving 0-0-0-0 key with the proper bounds
-void CopcReader::overlaps(Hierarchy& target, const NL::json& hier, const Key& key)
+void CopcReader::overlaps(CopcHierarchy& target, const NL::json& hier, const Key& key)
 {
     // If our key isn't in the hierarchy, we've totally traversed this tree
     // branch (there are no lower nodes).
@@ -725,17 +728,18 @@ bool CopcReader::processPoint(PointRef& dst, const CopcTileContents& tile)
     dst.setField(Id::Z, z);
     dst.setField(m_nodeIdDim, tile.nodeId());
     dst.setField(m_pointIdDim, pointId);
-    for (Addon& addon : m_p->addons)
-    {
-        Dimension::Id srcId = addon.localId();
-        BasePointTable *t = tile.addonTable(srcId);
-        if (t)
-        {
-            PointRef addonPoint(*t, pointId);
-            double val = addonPoint.getFieldAs<double>(srcId);
-            dst.setField(addon.externalId(), val);
-        }
-    }
+// ADDON CODE
+//    for (Addon& addon : m_p->addons)
+//    {
+//        Dimension::Id srcId = addon.localId();
+//        BasePointTable *t = tile.addonTable(srcId);
+//        if (t)
+//        {
+//            PointRef addonPoint(*t, pointId);
+//            double val = addonPoint.getFieldAs<double>(srcId);
+//            dst.setField(addon.externalId(), val);
+//        }
+//    }
     return true;
 }
 
@@ -776,15 +780,16 @@ point_count_t CopcReader::read(PointViewPtr view, point_count_t count)
     // Only relevant if we hit the count limit before reading all the tiles.
     m_p->pool->stop();
 
-    // If we're using the addon writer, transfer the info and hierarchy
-    // to that stage.
-    if (m_nodeIdDim != Dimension::Id::Unknown)
-    {
-        EptArtifactPtr artifact
-            (new EptArtifact(std::move(m_p->info), std::move(m_p->hierarchy),
-                std::move(m_p->connector), m_hierarchyStep));
-        m_artifactMgr->put("ept", artifact);
-    }
+// ADDON CODE
+//    // If we're using the addon writer, transfer the info and hierarchy
+//    // to that stage.
+//    if (m_nodeIdDim != Dimension::Id::Unknown)
+//    {
+//        EptArtifactPtr artifact
+//            (new EptArtifact(std::move(m_p->info), std::move(m_p->hierarchy),
+//                std::move(m_p->connector), m_hierarchyStep));
+//        m_artifactMgr->put("ept", artifact);
+//    }
 
     return numRead;
 }

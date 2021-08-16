@@ -59,10 +59,11 @@ void CopcTileContents::read()
             throw pdal_error("Unrecognized EPT dataType");
 //ABELL - Should check that we read the number of points specified in the
 //  overlap.
-        // Read addon information after the native data, we'll possibly
-        // overwrite attributes.
-        for (const Addon& addon : m_addons)
-            readAddon(addon);
+        // ADDON CODE
+//        // Read addon information after the native data, we'll possibly
+//        // overwrite attributes.
+//        for (const Addon& addon : m_addons)
+//            readAddon(addon);
     }
     catch (const std::exception& ex)
     {
@@ -132,28 +133,29 @@ void CopcTileContents::readZstandard()
 {}
 #endif // PDAL_HAVE_ZSTD
 
-void CopcTileContents::readAddon(const Addon& addon)
-{
-    m_addonTables[addon.localId()] = nullptr;
-
-    point_count_t addonPoints = addon.points(key());
-    if (addonPoints == 0)
-        return;
-
-    // If the addon hierarchy exists, it must match the EPT data.
-    if (addonPoints != size())
-        throw pdal_error("Invalid addon hierarchy");
-
-    std::string filename = addon.dataDir() + key().toString() + ".bin";
-    const auto data(m_connector.getBinary(filename));
-
-    if (size() * Dimension::size(addon.type()) != data.size())
-        throw pdal_error("Invalid addon content length");
-
-    VectorPointTable *vpt = new VectorPointTable(addon.layout());
-    vpt->buffer() = std::move(data);
-    m_addonTables[addon.localId()] = BasePointTablePtr(vpt);
-}
+// ADDON CODE
+//void CopcTileContents::readAddon(const Addon& addon)
+//{
+//    m_addonTables[addon.localId()] = nullptr;
+//
+//    point_count_t addonPoints = addon.points(key());
+//    if (addonPoints == 0)
+//        return;
+//
+//    // If the addon hierarchy exists, it must match the EPT data.
+//    if (addonPoints != size())
+//        throw pdal_error("Invalid addon hierarchy");
+//
+//    std::string filename = addon.dataDir() + key().toString() + ".bin";
+//    const auto data(m_connector.getBinary(filename));
+//
+//    if (size() * Dimension::size(addon.type()) != data.size())
+//        throw pdal_error("Invalid addon content length");
+//
+//    VectorPointTable *vpt = new VectorPointTable(addon.layout());
+//    vpt->buffer() = std::move(data);
+//    m_addonTables[addon.localId()] = BasePointTablePtr(vpt);
+//}
 
 void CopcTileContents::transform()
 {

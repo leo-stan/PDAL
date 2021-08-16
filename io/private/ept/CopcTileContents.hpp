@@ -38,7 +38,7 @@
 #include <pdal/pdal_types.hpp>
 
 #include "Addon.hpp"
-#include "Overlap.hpp"
+#include "CopcOverlap.hpp"
 
 namespace pdal
 {
@@ -51,11 +51,16 @@ using BasePointTablePtr = std::unique_ptr<BasePointTable>;
 class CopcTileContents
 {
 public:
-    CopcTileContents(const Overlap& overlap, const EptInfo& info,
-            const Connector& connector, const AddonList& addons) :
-        m_overlap(overlap), m_info(info), m_connector(connector),
-        m_addons(addons)
-    {}
+    // ADDON CODE
+//    CopcTileContents(const Overlap& overlap, const EptInfo& info,
+//            const Connector& connector, const AddonList& addons) :
+//        m_overlap(overlap), m_info(info), m_connector(connector),
+//        m_addons(addons)
+//    {}
+    CopcTileContents(const CopcOverlap& overlap, const EptInfo& info,
+                 const Connector& connector) :
+                 m_overlap(overlap), m_info(info), m_connector(connector)
+                 {}
 
     BasePointTable& table() const
         { return *m_table; }
@@ -76,10 +81,11 @@ public:
     void read();
 
 private:
-    Overlap m_overlap;
+    CopcOverlap m_overlap;
     const EptInfo& m_info;
     const Connector& m_connector;
-    const AddonList& m_addons;
+    // ADDON CODE
+    //    const AddonList& m_addons;
     std::string m_error;
     // Table for the base point data.
     BasePointTablePtr m_table;
@@ -89,7 +95,8 @@ private:
     void readLaszip();
     void readBinary();
     void readZstandard();
-    void readAddon(const Addon& addon);
+    // ADDON CODE
+    //    void readAddon(const Addon& addon);
     void transform();
 };
 
