@@ -139,6 +139,15 @@ if (PDAL_HAVE_LASZIP)
             ${GDAL_INCLUDE_DIR}
             ${NLOHMANN_INCLUDE_DIR}
     )
+    PDAL_ADD_TEST(pdal_io_copc_reader_test
+            FILES
+            io/CopcReaderTest.cpp
+            LINK_WITH
+            ${GDAL_LIBRARY}
+            INCLUDES
+            ${GDAL_INCLUDE_DIR}
+            ${NLOHMANN_INCLUDE_DIR}
+            )
     PDAL_ADD_TEST(pdal_io_ept_addon_writer_test
         FILES
             io/EptAddonWriterTest.cpp

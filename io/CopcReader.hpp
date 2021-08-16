@@ -50,7 +50,7 @@ namespace pdal
 class Connector;
 class EptInfo;
 class Key;
-class TileContents;
+class CopcTileContents;
 struct Overlap;
 using Hierarchy = std::unordered_set<Overlap>;
 using StringMap = std::map<std::string, std::string>;
@@ -87,10 +87,10 @@ private:
     void overlaps(Hierarchy& target, const NL::json& current, const Key& key);
     bool hasSpatialFilter() const;
     bool passesSpatialFilter(const BOX3D& tileBounds) const;
-    void process(PointViewPtr dstView, const TileContents& tile, point_count_t count);
-    bool processPoint(PointRef& dst, const TileContents& tile);
+    void process(PointViewPtr dstView, const CopcTileContents& tile, point_count_t count);
+    bool processPoint(PointRef& dst, const CopcTileContents& tile);
     void load(const Overlap& overlap);
-    void checkTile(const TileContents& tile);
+    void checkTile(const CopcTileContents& tile);
 
     struct Args;
     std::unique_ptr<Args> m_args;

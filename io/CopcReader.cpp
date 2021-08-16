@@ -49,7 +49,7 @@
 #include "private/ept/Connector.hpp"
 #include "private/ept/EptArtifact.hpp"
 #include "private/ept/EptSupport.hpp"
-#include "private/ept/TileContents.hpp"
+#include "private/ept/CopcTileContents.hpp"
 
 namespace pdal
 {
@@ -102,9 +102,9 @@ public:
     std::unique_ptr<Connector> connector;
     std::unique_ptr<EptInfo> info;
     std::unique_ptr<ThreadPool> pool;
-    std::unique_ptr<TileContents> currentTile;
+    std::unique_ptr<CopcTileContents> currentTile;
     std::unique_ptr<Hierarchy> hierarchy;
-    std::queue<TileContents> contents;
+    std::queue<CopcTileContents> contents;
     AddonList addons;
     std::mutex mutex;
     std::condition_variable contentsCv;
@@ -432,7 +432,7 @@ void CopcReader::load(const Overlap& overlap)
     m_p->pool->add([this, overlap]()
         {
             // Read the tile.
-            TileContents tile(overlap, *m_p->info, *m_p->connector, m_p->addons);
+            CopcTileContents tile(overlap, *m_p->info, *m_p->connector, m_p->addons);
             tile.read();
 
             // Put the tile on the output queue.
@@ -505,6 +505,7 @@ void CopcReader::overlaps()
         std::string filename = m_p->info->hierarchyDir() + key.toString() + ".json";
 
         // First, determine the overlapping nodes from the EPT resource.
+        //TODO[Leo]: Change this to load COPC hierarchy without json file
         overlaps(*m_p->hierarchy, m_p->connector->getJson(filename), key);
     }
     m_p->pool->await();
@@ -583,7 +584,8 @@ bool CopcReader::passesSpatialFilter(const BOX3D& tileBounds) const
     return boxOverlaps() || polysOverlap();
 }
 
-
+// This will add keys to target until key is reached
+// Also used to get all keys in bounds by giving 0-0-0-0 key with the proper bounds
 void CopcReader::overlaps(Hierarchy& target, const NL::json& hier, const Key& key)
 {
     // If our key isn't in the hierarchy, we've totally traversed this tree
@@ -641,12 +643,13 @@ void CopcReader::overlaps(Hierarchy& target, const NL::json& hier, const Key& ke
             target.emplace(key, (point_count_t)numPoints, m_nodeId++);
         }
 
+        // Goes to next 8 children
         for (uint64_t dir(0); dir < 8; ++dir)
             overlaps(target, hier, key.bisect(dir));
     }
 }
 
-void CopcReader::checkTile(const TileContents& tile)
+void CopcReader::checkTile(const CopcTileContents& tile)
 {
     if (tile.error().size())
     {
@@ -657,7 +660,7 @@ void CopcReader::checkTile(const TileContents& tile)
 
 
 // This code runs in a single thread, so doesn't need locking.
-bool CopcReader::processPoint(PointRef& dst, const TileContents& tile)
+bool CopcReader::processPoint(PointRef& dst, const CopcTileContents& tile)
 {
     using namespace Dimension;
 
@@ -756,7 +759,7 @@ point_count_t CopcReader::read(PointViewPtr view, point_count_t count)
             std::unique_lock<std::mutex> l(m_p->mutex);
             if (m_p->contents.size())
             {
-                TileContents tile = std::move(m_p->contents.front());
+                CopcTileContents tile = std::move(m_p->contents.front());
                 m_p->contents.pop();
                 l.unlock();
                 checkTile(tile);
@@ -788,7 +791,7 @@ point_count_t CopcReader::read(PointViewPtr view, point_count_t count)
 
 
 // Put the contents of a tile into the destination point view.
-void CopcReader::process(PointViewPtr dstView, const TileContents& tile,
+void CopcReader::process(PointViewPtr dstView, const CopcTileContents& tile,
     point_count_t count)
 {
     m_pointId = 0;
@@ -818,7 +821,7 @@ top:
             std::unique_lock<std::mutex> l(m_p->mutex);
             if (m_p->contents.size())
             {
-                m_p->currentTile.reset(new TileContents(std::move(m_p->contents.front())));
+                m_p->currentTile.reset(new CopcTileContents(std::move(m_p->contents.front())));
                 m_p->contents.pop();
                 break;
             }
