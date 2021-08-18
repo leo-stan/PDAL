@@ -76,8 +76,9 @@ public:
         { return m_overlap.m_count; }
     const std::string& error() const
         { return m_error; }
-    BasePointTable *addonTable(Dimension::Id id) const
-        { return const_cast<CopcTileContents *>(this)->m_addonTables[id].get(); }
+// ADDON CODE
+//    BasePointTable *addonTable(Dimension::Id id) const
+//        { return const_cast<CopcTileContents *>(this)->m_addonTables[id].get(); }
     void read();
 
 private:
@@ -89,8 +90,9 @@ private:
     std::string m_error;
     // Table for the base point data.
     BasePointTablePtr m_table;
-    // Tables for the add on data.
-    std::map<Dimension::Id, BasePointTablePtr> m_addonTables;
+// ADDON CODE
+//    // Tables for the add on data.
+//    std::map<Dimension::Id, BasePointTablePtr> m_addonTables;
 
     void readLaszip();
     void readBinary();

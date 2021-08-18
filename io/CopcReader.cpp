@@ -593,6 +593,7 @@ void CopcReader::overlaps(CopcHierarchy& target, const NL::json& hier, const Key
 {
     // If our key isn't in the hierarchy, we've totally traversed this tree
     // branch (there are no lower nodes).
+    // TODO [LEO] That's where we plug COPC Library
     auto it = hier.find(key.toString());
     if (it == hier.end())
         return;
